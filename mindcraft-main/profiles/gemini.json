@@ -1,7 +1,0 @@
-{
-    "name": "admin",
-
-    "model": "gemini-1.5-flash",
-
-    "cooldown": 10000
-}
