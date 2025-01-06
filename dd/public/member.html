@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FeNexSRV</title>
+    <style>
+        /* تنسيق عام للصفحة */
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #f06, #4a90e2); /* خلفية متدرجة */
+            color: #fff;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+            position: relative;
+        }
+
+        /* حاوية مركزية */
+        .container {
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        /* عنوان الصفحة */
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+
+        /* تنسيق المعلومات الخاصة بالسيرفر */
+        #server-info {
+            font-size: 18px;
+            margin-top: 20px;
+        }
+
+        /* تنسيق حالة السيرفر */
+        #server-status {
+            margin-top: 20px;
+            font-size: 20px;
+            color: green;
+        }
+
+        /* تنسيق الأزرار */
+        button {
+            font-size: 16px;
+            padding: 10px 20px;
+            margin-top: 20px;
+            border: 2px solid #444;
+            cursor: pointer;
+            border-radius: 5px;
+            background-color: #3498db;
+            color: white;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        button:disabled {
+            background-color: #7f8c8d;
+            cursor: not-allowed;
+        }
+
+        /* تنسيق أيقونة الحالة */
+        .status-icon {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            margin-left: 10px;
+            border-radius: 50%;
+        }
+
+        .status-online {
+            background-color: green;
+        }
+
+        .status-offline {
+            background-color: red;
+        }
+
+        /* تنسيق الدردشة */
+        #chat-container {
+            margin-top: 40px;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        #chat-box {
+            max-height: 200px;
+            overflow-y: scroll;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+        }
+
+        #chat-box p {
+            margin: 5px 0;
+        }
+
+        /* تنسيق زر im admin في الزاوية اليمنى العلوية */
+        .admin-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 16px;
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .admin-button:hover {
+            background-color: #2980b9;
+        }
+
+    </style>
+</head>
+<body>
+    <!-- الحاوية المركزية التي تحتوي على جميع العناصر -->
+    <div class="container">
+        <h1>FeNexSRV</h1>
+
+        <!-- معلومات السيرفر -->
+        <div id="server-info">
+            <p>السيرفر يعمل على عنوان: <strong>147.185.221.24:23743</strong></p>
+        </div>
+
+        <!-- حالة السيرفر -->
+        <div id="server-status">
+            <p>حالة السيرفر: <span id="status-text">غير متصل</span>
+                <span id="status-icon" class="status-icon status-offline"></span>
+            </p>
+        </div>
+
+        <!-- زر تشغيل السيرفر -->
+        <button id="start-server" onclick="startServer()">تشغيل السيرفر</button>
+
+        <!-- دردشة السيرفر -->
+        <div id="chat-container">
+            <h3>دردشة السيرفر</h3>
+            <div id="chat-box">
+                <!-- سيتم عرض الرسائل هنا -->
+            </div>
+        </div>
+    </div>
+
+    <!-- زر "im admin" في الزاوية العلوية -->
+    <button class="admin-button" onclick="location.href='/bimo'">im admin</button>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        // إرسال أمر تشغيل السيرفر
+        function startServer() {
+            socket.emit('start-server');
+        }
+
+        // تحديث حالة السيرفر عند الاتصال
+        socket.on('server-status', (isRunning) => {
+            const statusText = document.getElementById('status-text');
+            const statusIcon = document.getElementById('status-icon');
+            const startButton = document.getElementById('start-server');
+
+            if (isRunning) {
+                statusText.innerText = 'متصل';
+                statusIcon.classList.remove('status-offline');
+                statusIcon.classList.add('status-online');
+                startButton.disabled = true;  // تعطيل زر التشغيل إذا كان السيرفر يعمل
+            } else {
+                statusText.innerText = 'غير متصل';
+                statusIcon.classList.remove('status-online');
+                statusIcon.classList.add('status-offline');
+                startButton.disabled = false; // تمكين زر التشغيل إذا كان السيرفر غير متصل
+            }
+        });
+
+        // استقبال رسائل الدردشة
+        socket.on('chat-message', (message) => {
+            const chatBox = document.getElementById('chat-box');
+            const messageElement = document.createElement('p');
+            messageElement.textContent = message;
+            chatBox.appendChild(messageElement);
+            chatBox.scrollTop = chatBox.scrollHeight; // التمرير إلى أسفل الصندوق عند إضافة رسالة جديدة
+        });
+
+        // عند تحميل الصفحة، إرسال طلب للحصول على حالة السيرفر
+        window.onload = () => {
+            // إرسال طلب للحصول على حالة السيرفر فور تحميل الصفحة
+            socket.emit('request-server-status');
+        };
+
+        // عند عمل refresh، إرسال طلب للحصول على حالة السيرفر
+        window.onbeforeunload = () => {
+            socket.emit('request-server-status');
+        };
+    </script>
+</body>
+</html>

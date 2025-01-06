@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>موقع من تطوير aljx_67</title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            text-align: center;
+            padding: 20px;
+            background-color: #333;
+            color: white;
+        }
+
+        #console-output {
+            margin-top: 20px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            background-color: black;
+            color: white;
+            padding: 10px;
+            width: 80%;
+            height: 300px;
+            overflow-y: auto;
+            margin: 0 auto;
+            border: 2px solid #666;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+
+        #console-input {
+            width: 80%;
+            font-size: 14px;
+            padding: 8px;
+            margin-top: 10px;
+            border: 2px solid #666;
+            border-radius: 5px;
+            background-color: #222;
+            color: white;
+        }
+
+        button {
+            font-size: 16px;
+            padding: 10px 20px;
+            margin: 10px;
+            border: 2px solid #444;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        #start-server {
+            background-color: green;
+            color: white;
+        }
+
+        #stop-server {
+            background-color: red;
+            color: white;
+            display: none;
+        }
+
+        #restart-server {
+            background-color: blue;
+            color: white;
+            display: none;
+        }
+
+        button:hover {
+            opacity: 0.8;
+        }
+
+        /* تصميم الثلاث شخطات */
+        #menu-icon {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            z-index: 2;
+        }
+
+        #menu-icon div {
+            width: 30px;
+            height: 5px;
+            background-color: white;
+            margin: 5px 0;
+        }
+
+        /* تصميم القائمة الجانبية */
+        #side-menu {
+            position: fixed;
+            top: 0;
+            right: -250px; /* إخفاء القائمة في البداية */
+            width: 250px;
+            height: 100%;
+            background-color: #444;
+            padding-top: 20px;
+            transition: 0.3s;
+            z-index: 1;
+            color: white;
+        }
+
+        #side-menu a {
+            padding: 10px 15px;
+            text-decoration: none;
+            font-size: 18px;
+            color: white;
+            display: block;
+        }
+
+        #side-menu a:hover {
+            background-color: #666;
+        }
+
+        /* عند إظهار القائمة الجانبية */
+        #side-menu.show {
+            right: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- الثلاث شخطات -->
+    <div id="menu-icon" onclick="toggleMenu()">
+        <div></div>
+        <div></div>
+        <div></div>
+    </div>
+
+    <h1>موقع من تطوير aljx_67</h1>
+
+    <div id="console-output"></div>
+    <input type="text" id="console-input" placeholder="Enter command here..." />
+
+    <div class="buttons">
+        <button id="start-server" onclick="startServer()">Start Server</button>
+        <button id="stop-server" onclick="stopServer()">Stop Server</button>
+        <button id="restart-server" onclick="restartServer()">Restart Server</button>
+    </div>
+
+    <!-- القائمة الجانبية -->
+    <div id="side-menu">
+        <!-- عندما يتم النقر على هذا الرابط، يتم فتح موقع يحتوي على ملفات اللعبة -->
+        <a href="https://example.com" target="_blank">Option 1</a>
+        <a href="#">Option 2</a>
+        <a href="#">Option 3</a>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        // إرسال أمر من الكونسول عند الضغط على Enter
+        const consoleInput = document.getElementById('console-input');
+        consoleInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendCommand();
+            }
+        });
+
+        function sendCommand() {
+            const command = consoleInput.value.trim();
+            if (command) {
+                socket.emit('send-command', command); // إرسال الأمر إلى السيرفر
+                consoleInput.value = ''; // مسح الحقل بعد الإرسال
+            }
+        }
+
+        // استقبال الأوامر من السيرفر وعرضها في الكونسول
+        socket.on('console-output', (data) => {
+            const consoleOutput = document.getElementById('console-output');
+            consoleOutput.textContent += data + '\n';
+            consoleOutput.scrollTop = consoleOutput.scrollHeight; // تمرير تلقائي لأسفل
+            saveToLocalStorage(data); // حفظ البيانات في localStorage
+        });
+
+        // استقبال حالة السيرفر وتحديث الأزرار بناءً عليها
+        socket.on('server-status', (isRunning) => {
+            const startButton = document.getElementById('start-server');
+            const stopButton = document.getElementById('stop-server');
+            const restartButton = document.getElementById('restart-server');
+
+            if (isRunning) {
+                startButton.style.display = 'none';
+                stopButton.style.display = 'inline-block';
+                restartButton.style.display = 'inline-block';
+            } else {
+                startButton.style.display = 'inline-block';
+                stopButton.style.display = 'none';
+                restartButton.style.display = 'none';
+            }
+        });
+
+        // تشغيل السيرفر
+        function startServer() {
+            socket.emit('start-server');
+        }
+
+        // إيقاف السيرفر
+        function stopServer() {
+            socket.emit('stop-server');
+            clearConsole(); // مسح الكونسول عند إيقاف السيرفر
+        }
+
+        // إعادة تشغيل السيرفر
+        function restartServer() {
+            stopServer();
+            setTimeout(startServer, 3000); // تشغيل السيرفر بعد 3 ثوانٍ
+        }
+
+        // التحكم في قائمة الخيارات
+        function toggleMenu() {
+            document.getElementById('side-menu').classList.toggle('show');
+        }
+
+        // حفظ البيانات في LocalStorage
+        function saveToLocalStorage(data) {
+            let consoleData = localStorage.getItem('console-output') || '';
+            consoleData += data + '\n';
+            localStorage.setItem('console-output', consoleData);
+        }
+
+        // استعادة البيانات من LocalStorage عند تحميل الصفحة
+        function loadFromLocalStorage() {
+            const consoleOutput = document.getElementById('console-output');
+            const savedData = localStorage.getItem('console-output');
+            if (savedData) {
+                consoleOutput.textContent = savedData;
+                consoleOutput.scrollTop = consoleOutput.scrollHeight; // التمرير للأسفل
+            }
+        }
+
+        // مسح الكونسول
+        function clearConsole() {
+            localStorage.removeItem('console-output'); // مسح البيانات من localStorage
+            const consoleOutput = document.getElementById('console-output');
+            consoleOutput.textContent = ''; // مسح المحتوى المعروض في الكونسول
+        }
+
+        // استدعاء التحميل عند فتح الصفحة
+        loadFromLocalStorage();
+    </script>
+</body>
+</html>
