@@ -222,15 +222,6 @@ io.on('connection', (socket) => {
 
             io.emit('console-output', 'Minecraft server is starting...');
             io.emit('server-status', true);
-
-            setTimeout(() => {
-                io.emit('console-output', 'Starting playit...');
-                const playitProcess = spawn('playit', [], { stdio: ['ignore', 'ignore', 'ignore'] });
-
-                playitProcess.on('close', (code) => {
-                    console.log(`playit process closed with code ${code}`);
-                });
-            }, 10000);  // 10 ثواني بعد بدء Minecraft
         }
     });
 
@@ -251,33 +242,10 @@ io.on('connection', (socket) => {
             io.emit('console-output', 'Minecraft server is not running.');
         }
     });
-
-    // إضافة حدث لبدء playit
-    socket.on('start-playit', () => {
-        const playitProcess = spawn('playit', []); // تأكد من أن playit موجود في الـ PATH
-        playitProcess.stdout.on('data', (data) => {
-            io.emit('console-output', data.toString());
-        });
-
-        playitProcess.stderr.on('data', (data) => {
-            io.emit('console-output', `ERROR: ${data.toString()}`);
-        });
-
-        playitProcess.on('close', (code) => {
-            io.emit('console-output', `playit process closed with code ${code}`);
-        });
-
-        io.emit('console-output', 'playit is starting...');
-    });
-
-    socket.on('disconnect', () => {
-        console.log('User disconnected');
-        connectedUsers = connectedUsers.filter(user => user !== socket.id);
-        io.emit('update-connected-users', connectedUsers);
-    });
 });
 
 // إعداد الخادم
 server.listen(PORT, () => {
-    console.log(`Server is running at http://localhost:${PORT}`);
+    console.log(`Server is running at http://0.0.0.0:${PORT}`);
 });
+ 
