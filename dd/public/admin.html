@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>موقع من تطوير aljx_67</title>
   <style>
     body {
@@ -46,10 +46,23 @@
       cursor: pointer;
       border-radius: 5px;
     }
-    #start-server { background-color: green; color: white; }
-    #stop-server { background-color: red; color: white; display: none; }
-    #restart-server { background-color: blue; color: white; display: none; }
-    button:hover { opacity: 0.8; }
+    #start-server {
+      background-color: green;
+      color: white;
+    }
+    #stop-server {
+      background-color: red;
+      color: white;
+      display: none;
+    }
+    #restart-server {
+      background-color: blue;
+      color: white;
+      display: none;
+    }
+    button:hover {
+      opacity: 0.8;
+    }
     #menu-icon {
       position: absolute;
       top: 10px;
@@ -88,6 +101,23 @@
     #side-menu a:hover {
       background-color: #666;
     }
+
+    /* قسم عرض استخدام الموارد */
+    #resource-usage {
+      margin-top: 20px;
+      font-size: 16px;
+      background-color: #222;
+      padding: 15px;
+      width: 80%;
+      margin-left: auto;
+      margin-right: auto;
+      border-radius: 5px;
+      border: 2px solid #666;
+      color: #0f0;
+      text-align: left;
+      font-family: monospace;
+      white-space: pre-line;
+    }
   </style>
 </head>
 <body>
@@ -109,6 +139,14 @@
     <button id="restart-server" onclick="restartServer()">Restart Server</button>
   </div>
 
+  <!-- عرض استخدام الرام، المعالج، والتخزين -->
+  <div id="resource-usage">
+    <h3>حالة استخدام الموارد:</h3>
+    <div id="ram-usage">RAM: ...</div>
+    <div id="cpu-usage">CPU: ...</div>
+    <div id="disk-usage">Disk: ...</div>
+  </div>
+
   <!-- القائمة الجانبية -->
   <div id="side-menu">
     <a href="/editor" target="_blank">تعديل الملفات</a>
@@ -120,7 +158,7 @@
   <script>
     const socket = io();
 
-    // إرسال الأوامر إلى السيرفر
+    // إرسال الأوامر إلى السيرفر عند الضغط Enter
     const consoleInput = document.getElementById('console-input');
     consoleInput.addEventListener('keypress', e => {
       if (e.key === 'Enter') sendCommand();
@@ -133,6 +171,7 @@
       consoleInput.value = '';
     }
 
+    // تحديث الكونسول بمخرجات السيرفر
     socket.on('console-output', data => {
       const out = document.getElementById('console-output');
       out.textContent += data + '\n';
@@ -140,29 +179,42 @@
       saveToLocalStorage(data);
     });
 
+    // تحديث حالة السيرفر
     socket.on('server-status', isRunning => {
       document.getElementById('start-server').style.display = isRunning ? 'none' : 'inline-block';
       document.getElementById('stop-server').style.display = isRunning ? 'inline-block' : 'none';
       document.getElementById('restart-server').style.display = isRunning ? 'inline-block' : 'none';
     });
 
+    // استقبال بيانات الموارد وعرضها
+    socket.on('resource-usage', data => {
+      document.getElementById('ram-usage').textContent = `RAM: ${data.ram}`;
+      document.getElementById('cpu-usage').textContent = `CPU: ${data.cpu}`;
+      document.getElementById('disk-usage').textContent = `Disk: ${data.disk}`;
+    });
+
+    // وظائف أزرار التحكم
     function startServer() { socket.emit('start-server'); }
     function stopServer() { socket.emit('stop-server'); clearConsole(); }
     function restartServer() { stopServer(); setTimeout(startServer, 3000); }
 
+    // التحكم في القائمة الجانبية
     function toggleMenu() {
       document.getElementById('side-menu').classList.toggle('show');
     }
 
+    // فتح نافذة قائمة اللاعبين
     function openPlayersList() {
       window.open('/players.html', '_blank');
     }
 
+    // حفظ البيانات في localStorage
     function saveToLocalStorage(data) {
       let existing = localStorage.getItem('console-output') || '';
       localStorage.setItem('console-output', existing + data + '\n');
     }
 
+    // تحميل البيانات من localStorage
     function loadFromLocalStorage() {
       const saved = localStorage.getItem('console-output');
       if (saved) {
@@ -172,6 +224,7 @@
       }
     }
 
+    // مسح الكونسول
     function clearConsole() {
       localStorage.removeItem('console-output');
       document.getElementById('console-output').textContent = '';
