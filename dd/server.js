@@ -116,7 +116,6 @@ app.get('/member', (req, res) => {
 app.get('/bimo', (req, res) => {
     const allowedAdmins = ['fenex', 'aljx_67', 'smill09'];
 
-    // التحقق من الجلسة وصلاحية المستخدم
     if (req.session.loggedIn) {
         if (allowedAdmins.includes(req.session.username)) {
             res.sendFile(path.join(__dirname, 'public', 'admin.html'));
@@ -178,7 +177,6 @@ app.get('/usercache.json', (req, res) => {
 let minecraftServerProcess = null;
 let connectedUsers = [];
 
-// عند الاتصال عبر Socket.io
 io.on('connection', (socket) => {
     console.log('A user connected');
 
@@ -222,15 +220,6 @@ io.on('connection', (socket) => {
 
             io.emit('console-output', 'Minecraft server is starting...');
             io.emit('server-status', true);
-
-            setTimeout(() => {
-                io.emit('console-output', 'Starting playit...');
-                const playitProcess = spawn('playit', [], { stdio: ['ignore', 'ignore', 'ignore'] });
-
-                playitProcess.on('close', (code) => {
-                    console.log(`playit process closed with code ${code}`);
-                });
-            }, 10000);  // 10 ثواني بعد بدء Minecraft
         }
     });
 
@@ -250,24 +239,6 @@ io.on('connection', (socket) => {
         } else {
             io.emit('console-output', 'Minecraft server is not running.');
         }
-    });
-
-    // إضافة حدث لبدء playit
-    socket.on('start-playit', () => {
-        const playitProcess = spawn('playit', []); // تأكد من أن playit موجود في الـ PATH
-        playitProcess.stdout.on('data', (data) => {
-            io.emit('console-output', data.toString());
-        });
-
-        playitProcess.stderr.on('data', (data) => {
-            io.emit('console-output', `ERROR: ${data.toString()}`);
-        });
-
-        playitProcess.on('close', (code) => {
-            io.emit('console-output', `playit process closed with code ${code}`);
-        });
-
-        io.emit('console-output', 'playit is starting...');
     });
 
     socket.on('disconnect', () => {
