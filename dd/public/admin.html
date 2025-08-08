@@ -1,9 +1,10 @@
+<!-- بداية الكود المعدل -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>موقع من تطوير aljx_67</title>
+  <title>لوحة تحكم الأدمن - aljx_67</title>
   <style>
     body {
       font-family: 'Courier New', Courier, monospace;
@@ -12,6 +13,7 @@
       background-color: #333;
       color: white;
       position: relative;
+      direction: rtl;
     }
     #console-output {
       margin-top: 20px;
@@ -46,23 +48,12 @@
       cursor: pointer;
       border-radius: 5px;
     }
-    #start-server {
-      background-color: green;
-      color: white;
-    }
-    #stop-server {
-      background-color: red;
-      color: white;
-      display: none;
-    }
-    #restart-server {
-      background-color: blue;
-      color: white;
-      display: none;
-    }
-    button:hover {
-      opacity: 0.8;
-    }
+    #start-server { background-color: green; color: white; }
+    #stop-server { background-color: red; color: white; display: none; }
+    #restart-server { background-color: blue; color: white; display: none; }
+    button:hover { opacity: 0.8; }
+
+    /* القائمة الجانبية */
     #menu-icon {
       position: absolute;
       top: 10px;
@@ -79,8 +70,8 @@
     #side-menu {
       position: fixed;
       top: 0;
-      right: -250px;
-      width: 250px;
+      right: -260px;
+      width: 260px;
       height: 100%;
       background-color: #444;
       padding-top: 20px;
@@ -88,13 +79,11 @@
       z-index: 1;
       color: white;
     }
-    #side-menu.show {
-      right: 0;
-    }
+    #side-menu.show { right: 0; }
     #side-menu a {
-      padding: 10px 15px;
+      padding: 12px 20px;
       text-decoration: none;
-      font-size: 18px;
+      font-size: 17px;
       color: white;
       display: block;
     }
@@ -102,7 +91,7 @@
       background-color: #666;
     }
 
-    /* قسم عرض استخدام الموارد */
+    /* استخدام الموارد */
     #resource-usage {
       margin-top: 20px;
       font-size: 16px;
@@ -118,28 +107,35 @@
       font-family: monospace;
       white-space: pre-line;
     }
+
+    /* صورة ماينكرافت */
+    .minecraft-icon {
+      margin-top: 30px;
+    }
+    .minecraft-icon img {
+      width: 100px;
+    }
   </style>
 </head>
 <body>
-  <!-- زر الثلاث خُطوط لفتح القائمة -->
+
+  <!-- قائمة التنقل -->
   <div id="menu-icon" onclick="toggleMenu()">
     <div></div><div></div><div></div>
   </div>
 
-  <h1>موقع من تطوير aljx_67</h1>
+  <h1>🛠️ لوحة تحكم الأدمن - aljx_67</h1>
 
-  <!-- مخرجات الكونسول -->
   <div id="console-output"></div>
-  <input type="text" id="console-input" placeholder="Enter command here..." />
+  <input type="text" id="console-input" placeholder="أدخل أمر هنا..." />
 
-  <!-- أزرار التحكم بالسيرفر -->
   <div class="buttons">
-    <button id="start-server" onclick="startServer()">Start Server</button>
-    <button id="stop-server" onclick="stopServer()">Stop Server</button>
-    <button id="restart-server" onclick="restartServer()">Restart Server</button>
+    <button id="start-server" onclick="startServer()">تشغيل السيرفر</button>
+    <button id="stop-server" onclick="stopServer()">إيقاف السيرفر</button>
+    <button id="restart-server" onclick="restartServer()">إعادة تشغيل السيرفر</button>
   </div>
 
-  <!-- عرض استخدام الرام، المعالج، والتخزين -->
+  <!-- استخدام الموارد -->
   <div id="resource-usage">
     <h3>حالة استخدام الموارد:</h3>
     <div id="ram-usage">RAM: ...</div>
@@ -149,17 +145,23 @@
 
   <!-- القائمة الجانبية -->
   <div id="side-menu">
-    <a href="/editor" target="_blank">تعديل الملفات</a>
-    <a href="/add-admin" target="_blank">إضافة مشرف</a>
-    <a href="#" onclick="openPlayersList()">قائمة اللاعبين</a>
+    <a href="/editor" target="_blank">📝 تعديل ملفات السيرفر</a>
+    <a href="/players.html" target="_blank">👥 قائمة اللاعبين + التحكم</a>
+    <a href="/settings" target="_blank">⚙️ إعدادات السيرفر</a>
+    <a href="/add-admin" target="_blank">🔐 إدارة صلاحيات دخول الأدمن</a>
   </div>
 
+  <!-- صورة ديكورية -->
+  <div class="minecraft-icon">
+    <img src="https://static.wikia.nocookie.net/minecraft_gamepedia/images/d/d7/Grass_Block_JE6_BE6.png" alt="Minecraft Icon" />
+  </div>
+
+  <!-- السكربت -->
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-
-    // إرسال الأوامر إلى السيرفر عند الضغط Enter
     const consoleInput = document.getElementById('console-input');
+
     consoleInput.addEventListener('keypress', e => {
       if (e.key === 'Enter') sendCommand();
     });
@@ -171,7 +173,6 @@
       consoleInput.value = '';
     }
 
-    // تحديث الكونسول بمخرجات السيرفر
     socket.on('console-output', data => {
       const out = document.getElementById('console-output');
       out.textContent += data + '\n';
@@ -179,42 +180,31 @@
       saveToLocalStorage(data);
     });
 
-    // تحديث حالة السيرفر
     socket.on('server-status', isRunning => {
       document.getElementById('start-server').style.display = isRunning ? 'none' : 'inline-block';
       document.getElementById('stop-server').style.display = isRunning ? 'inline-block' : 'none';
       document.getElementById('restart-server').style.display = isRunning ? 'inline-block' : 'none';
     });
 
-    // استقبال بيانات الموارد وعرضها
     socket.on('resource-usage', data => {
       document.getElementById('ram-usage').textContent = `RAM: ${data.ram}`;
       document.getElementById('cpu-usage').textContent = `CPU: ${data.cpu}`;
       document.getElementById('disk-usage').textContent = `Disk: ${data.disk}`;
     });
 
-    // وظائف أزرار التحكم
     function startServer() { socket.emit('start-server'); }
     function stopServer() { socket.emit('stop-server'); clearConsole(); }
     function restartServer() { stopServer(); setTimeout(startServer, 3000); }
 
-    // التحكم في القائمة الجانبية
     function toggleMenu() {
       document.getElementById('side-menu').classList.toggle('show');
     }
 
-    // فتح نافذة قائمة اللاعبين
-    function openPlayersList() {
-      window.open('/players.html', '_blank');
-    }
-
-    // حفظ البيانات في localStorage
     function saveToLocalStorage(data) {
       let existing = localStorage.getItem('console-output') || '';
       localStorage.setItem('console-output', existing + data + '\n');
     }
 
-    // تحميل البيانات من localStorage
     function loadFromLocalStorage() {
       const saved = localStorage.getItem('console-output');
       if (saved) {
@@ -224,7 +214,6 @@
       }
     }
 
-    // مسح الكونسول
     function clearConsole() {
       localStorage.removeItem('console-output');
       document.getElementById('console-output').textContent = '';
