@@ -1,225 +1,483 @@
-<!-- بداية الكود المعدل -->
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>لوحة تحكم الأدمن - aljx_67</title>
-  <style>
-    body {
-      font-family: 'Courier New', Courier, monospace;
-      text-align: center;
-      padding: 20px;
-      background-color: #333;
-      color: white;
-      position: relative;
-      direction: rtl;
-    }
-    #console-output {
-      margin-top: 20px;
-      font-family: monospace;
-      font-size: 14px;
-      background-color: black;
-      color: white;
-      padding: 10px;
-      width: 80%;
-      height: 300px;
-      overflow-y: auto;
-      margin: 0 auto;
-      border: 2px solid #666;
-      border-radius: 5px;
-      white-space: pre-wrap;
-    }
-    #console-input {
-      width: 80%;
-      font-size: 14px;
-      padding: 8px;
-      margin-top: 10px;
-      border: 2px solid #666;
-      border-radius: 5px;
-      background-color: #222;
-      color: white;
-    }
-    button {
-      font-size: 16px;
-      padding: 10px 20px;
-      margin: 10px;
-      border: 2px solid #444;
-      cursor: pointer;
-      border-radius: 5px;
-    }
-    #start-server { background-color: green; color: white; }
-    #stop-server { background-color: red; color: white; display: none; }
-    #restart-server { background-color: blue; color: white; display: none; }
-    button:hover { opacity: 0.8; }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>لوحة تحكم السيرفر - الإدارة</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cairo&display=swap');
+  body {
+    margin: 0; padding: 0;
+    font-family: 'Cairo', sans-serif;
+    background: #121212;
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  header {
+    background: #1f1f1f;
+    padding: 20px;
+    font-size: 24px;
+    font-weight: bold;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.7);
+    text-align: center;
+  }
+  nav {
+    background: #242424;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+  }
+  nav button {
+    background: #00c853;
+    border: none;
+    padding: 10px 18px;
+    font-size: 16px;
+    border-radius: 6px;
+    color: #121212;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.3s ease;
+  }
+  nav button:hover {
+    background: #00e676;
+  }
 
-    /* القائمة الجانبية */
-    #menu-icon {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      cursor: pointer;
-      z-index: 2;
-    }
-    #menu-icon div {
-      width: 30px;
-      height: 5px;
-      background-color: white;
-      margin: 5px 0;
-    }
-    #side-menu {
-      position: fixed;
-      top: 0;
-      right: -260px;
-      width: 260px;
-      height: 100%;
-      background-color: #444;
-      padding-top: 20px;
-      transition: 0.3s;
-      z-index: 1;
-      color: white;
-    }
-    #side-menu.show { right: 0; }
-    #side-menu a {
-      padding: 12px 20px;
-      text-decoration: none;
-      font-size: 17px;
-      color: white;
-      display: block;
-    }
-    #side-menu a:hover {
-      background-color: #666;
-    }
+  main {
+    flex: 1;
+    display: flex;
+    padding: 20px;
+    gap: 20px;
+    overflow: hidden;
+  }
 
-    /* استخدام الموارد */
-    #resource-usage {
-      margin-top: 20px;
-      font-size: 16px;
-      background-color: #222;
-      padding: 15px;
-      width: 80%;
-      margin-left: auto;
-      margin-right: auto;
-      border-radius: 5px;
-      border: 2px solid #666;
-      color: #0f0;
-      text-align: left;
-      font-family: monospace;
-      white-space: pre-line;
-    }
+  /* ====== قسم لوحة التحكم ====== */
+  #controlPanel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .controls {
+    width: 220px;
+    background: #242424;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 0 15px #00c853;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  .controls button {
+    background: #00c853;
+    border: none;
+    padding: 12px 15px;
+    font-size: 16px;
+    border-radius: 6px;
+    color: #121212;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.3s ease;
+  }
+  .controls button:hover {
+    background: #00e676;
+  }
+  #consoleOutput {
+    flex: 1;
+    background: #000;
+    border-radius: 8px;
+    padding: 20px;
+    font-family: monospace;
+    font-size: 14px;
+    color: #00ff00;
+    overflow-y: auto;
+    box-shadow: inset 0 0 15px #00c853;
+    white-space: pre-wrap;
+  }
+  #terminalInputContainer {
+    display: flex;
+    gap: 10px;
+  }
+  #terminalInput {
+    flex: 1;
+    padding: 8px;
+    font-family: monospace;
+    font-size: 14px;
+    border-radius: 6px;
+    border: none;
+    outline: none;
+    background: #222;
+    color: #eee;
+  }
+  #sendCmdBtn {
+    background: #00c853;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 6px;
+    color: #121212;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  #sendCmdBtn:hover {
+    background: #00e676;
+  }
 
-    /* صورة ماينكرافت */
-    .minecraft-icon {
-      margin-top: 30px;
-    }
-    .minecraft-icon img {
-      width: 100px;
-    }
-  </style>
+  /* ====== قسم مدير الملفات ====== */
+  #fileManager {
+    flex: 1;
+    background: #242424;
+    border-radius: 8px;
+    padding: 15px;
+    color: #eee;
+    display: none;
+    flex-direction: column;
+  }
+  #fileManager header {
+    font-size: 18px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  #pathDisplay {
+    background: #121212;
+    padding: 8px 15px;
+    border-radius: 6px;
+    font-family: monospace;
+    flex-grow: 1;
+    user-select: text;
+  }
+  #filesList {
+    flex: 1;
+    overflow-y: auto;
+    margin-top: 10px;
+    background: #1e1e1e;
+    border-radius: 6px;
+    padding: 10px;
+  }
+  #filesList table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  #filesList th, #filesList td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #333;
+    text-align: right;
+  }
+  #filesList tr:hover {
+    background-color: #333;
+  }
+  #filesList tr.directory {
+    font-weight: bold;
+    cursor: pointer;
+  }
+  #filesList tr.file {
+    cursor: default;
+  }
+  #fileActions {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+  }
+  #fileActions button {
+    background: #00c853;
+    border: none;
+    padding: 10px 15px;
+    font-size: 14px;
+    border-radius: 6px;
+    color: #121212;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.3s ease;
+  }
+  #fileActions button:hover {
+    background: #00e676;
+  }
+  #fileContent {
+    margin-top: 10px;
+    background: #000;
+    color: #0f0;
+    font-family: monospace;
+    white-space: pre-wrap;
+    border-radius: 6px;
+    padding: 15px;
+    height: 250px;
+    overflow-y: auto;
+  }
+  input[type="file"] {
+    display: none;
+  }
+</style>
+<script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
 
-  <!-- قائمة التنقل -->
-  <div id="menu-icon" onclick="toggleMenu()">
-    <div></div><div></div><div></div>
-  </div>
+<header>لوحة تحكم السيرفر - الإدارة</header>
 
-  <h1>🛠️ لوحة تحكم الأدمن - aljx_67</h1>
+<nav>
+  <button id="btnControlPanel">لوحة التحكم</button>
+  <button id="btnFileManager">مدير الملفات</button>
+</nav>
 
-  <div id="console-output"></div>
-  <input type="text" id="console-input" placeholder="أدخل أمر هنا..." />
+<main>
+  <!-- قسم لوحة التحكم -->
+  <section id="controlPanel">
+    <div style="display: flex; gap: 20px;">
+      <div class="controls">
+        <button id="startBtn" title="تشغيل السيرفر">▶ تشغيل السيرفر</button>
+        <button id="stopBtn" title="إيقاف السيرفر" disabled>■ إيقاف السيرفر</button>
+      </div>
+      <section id="consoleOutput" aria-live="polite" aria-label="إخراج الكونسل"></section>
+    </div>
+    <div id="terminalInputContainer">
+      <input id="terminalInput" type="text" placeholder="اكتب أمرًا..." autocomplete="off" />
+      <button id="sendCmdBtn">إرسال</button>
+    </div>
+  </section>
 
-  <div class="buttons">
-    <button id="start-server" onclick="startServer()">تشغيل السيرفر</button>
-    <button id="stop-server" onclick="stopServer()">إيقاف السيرفر</button>
-    <button id="restart-server" onclick="restartServer()">إعادة تشغيل السيرفر</button>
-  </div>
+  <!-- قسم مدير الملفات -->
+  <section id="fileManager" aria-label="مدير الملفات">
+    <header>
+      <div id="pathDisplay">/</div>
+      <button id="btnUpDir" title="المجلد الأعلى">⬆️</button>
+    </header>
+    <div id="filesList" tabindex="0">
+      <!-- سيتم ملء جدول الملفات هنا -->
+    </div>
 
-  <!-- استخدام الموارد -->
-  <div id="resource-usage">
-    <h3>حالة استخدام الموارد:</h3>
-    <div id="ram-usage">RAM: ...</div>
-    <div id="cpu-usage">CPU: ...</div>
-    <div id="disk-usage">Disk: ...</div>
-  </div>
+    <div id="fileActions">
+      <button id="btnViewFile" disabled>عرض الملف</button>
+      <button id="btnDeleteFile" disabled>حذف</button>
+      <button id="btnUploadFile">رفع ملف</button>
+      <input type="file" id="fileUploader" />
+    </div>
 
-  <!-- القائمة الجانبية -->
-  <div id="side-menu">
-    <a href="/editor" target="_blank">📝 تعديل ملفات السيرفر</a>
-    <a href="/players.html" target="_blank">👥 قائمة اللاعبين + التحكم</a>
-    <a href="/settings" target="_blank">⚙️ إعدادات السيرفر</a>
-    <a href="/add-admin" target="_blank">🔐 إدارة صلاحيات دخول الأدمن</a>
-  </div>
+    <pre id="fileContent" hidden></pre>
+  </section>
+</main>
 
-  <!-- صورة ديكورية -->
-  <div class="minecraft-icon">
-    <img src="https://static.wikia.nocookie.net/minecraft_gamepedia/images/d/d7/Grass_Block_JE6_BE6.png" alt="Minecraft Icon" />
-  </div>
+<script>
+  const socket = io();
 
-  <!-- السكربت -->
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
-    const consoleInput = document.getElementById('console-input');
+  // --- لوحة التحكم ---
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const consoleOutput = document.getElementById('consoleOutput');
 
-    consoleInput.addEventListener('keypress', e => {
-      if (e.key === 'Enter') sendCommand();
-    });
+  function updateButtons(isRunning) {
+    startBtn.disabled = isRunning;
+    stopBtn.disabled = !isRunning;
+  }
 
-    function sendCommand() {
-      const cmd = consoleInput.value.trim();
-      if (!cmd) return;
-      socket.emit('send-command', cmd);
-      consoleInput.value = '';
+  startBtn.addEventListener('click', () => {
+    socket.emit('start-server');
+  });
+
+  stopBtn.addEventListener('click', () => {
+    socket.emit('stop-server');
+  });
+
+  socket.on('console-output', (data) => {
+    consoleOutput.textContent += data + '\n';
+    consoleOutput.scrollTop = consoleOutput.scrollHeight;
+  });
+
+  socket.on('server-status', (status) => {
+    if(status) {
+      consoleOutput.textContent += '[السيرفر يعمل]\n';
+    } else {
+      consoleOutput.textContent += '[السيرفر متوقف]\n';
     }
+    updateButtons(status);
+  });
 
-    socket.on('console-output', data => {
-      const out = document.getElementById('console-output');
-      out.textContent += data + '\n';
-      out.scrollTop = out.scrollHeight;
-      saveToLocalStorage(data);
-    });
+  updateButtons(false);
 
-    socket.on('server-status', isRunning => {
-      document.getElementById('start-server').style.display = isRunning ? 'none' : 'inline-block';
-      document.getElementById('stop-server').style.display = isRunning ? 'inline-block' : 'none';
-      document.getElementById('restart-server').style.display = isRunning ? 'inline-block' : 'none';
-    });
+  // --- إرسال أوامر التيرمنال ---
+  const terminalInput = document.getElementById('terminalInput');
+  const sendCmdBtn = document.getElementById('sendCmdBtn');
 
-    socket.on('resource-usage', data => {
-      document.getElementById('ram-usage').textContent = `RAM: ${data.ram}`;
-      document.getElementById('cpu-usage').textContent = `CPU: ${data.cpu}`;
-      document.getElementById('disk-usage').textContent = `Disk: ${data.disk}`;
-    });
-
-    function startServer() { socket.emit('start-server'); }
-    function stopServer() { socket.emit('stop-server'); clearConsole(); }
-    function restartServer() { stopServer(); setTimeout(startServer, 3000); }
-
-    function toggleMenu() {
-      document.getElementById('side-menu').classList.toggle('show');
+  function sendCommand() {
+    const cmd = terminalInput.value.trim();
+    if(cmd) {
+      socket.emit('terminal-command', cmd);
+      terminalInput.value = '';
     }
+  }
 
-    function saveToLocalStorage(data) {
-      let existing = localStorage.getItem('console-output') || '';
-      localStorage.setItem('console-output', existing + data + '\n');
+  sendCmdBtn.addEventListener('click', sendCommand);
+
+  terminalInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter') {
+      sendCommand();
     }
+  });
 
-    function loadFromLocalStorage() {
-      const saved = localStorage.getItem('console-output');
-      if (saved) {
-        const out = document.getElementById('console-output');
-        out.textContent = saved;
-        out.scrollTop = out.scrollHeight;
+  // --- تبديل الأقسام ---
+  const btnControlPanel = document.getElementById('btnControlPanel');
+  const btnFileManager = document.getElementById('btnFileManager');
+  const controlPanel = document.getElementById('controlPanel');
+  const fileManager = document.getElementById('fileManager');
+
+  btnControlPanel.addEventListener('click', () => {
+    controlPanel.style.display = 'flex';
+    fileManager.style.display = 'none';
+  });
+
+  btnFileManager.addEventListener('click', () => {
+    controlPanel.style.display = 'none';
+    fileManager.style.display = 'flex';
+    loadFiles(currentPath);
+  });
+
+  // --- مدير الملفات ---
+  const pathDisplay = document.getElementById('pathDisplay');
+  const btnUpDir = document.getElementById('btnUpDir');
+  const filesList = document.getElementById('filesList');
+  const btnViewFile = document.getElementById('btnViewFile');
+  const btnDeleteFile = document.getElementById('btnDeleteFile');
+  const btnUploadFile = document.getElementById('btnUploadFile');
+  const fileUploader = document.getElementById('fileUploader');
+  const fileContent = document.getElementById('fileContent');
+
+  let currentPath = '/';
+  let selectedFile = null;
+  let selectedIsDirectory = false;
+
+  function sanitizePath(path) {
+    if (!path.startsWith('/')) path = '/' + path;
+    return path;
+  }
+
+  function loadFiles(dirPath) {
+    dirPath = sanitizePath(dirPath);
+    fetch(`/api/files?path=${encodeURIComponent(dirPath)}`)
+      .then(res => res.json())
+      .then(data => {
+        if(data.error) {
+          alert(data.error);
+          return;
+        }
+        currentPath = dirPath;
+        pathDisplay.textContent = currentPath;
+        renderFilesList(data.files);
+        clearSelection();
+        fileContent.hidden = true;
+        fileContent.textContent = '';
+      }).catch(err => alert('حدث خطأ في تحميل الملفات'));
+  }
+
+  function renderFilesList(files) {
+    if(!files) files = [];
+    let html = '<table><thead><tr><th>الاسم</th><th>النوع</th></tr></thead><tbody>';
+    for(let f of files) {
+      html += `<tr tabindex="0" class="${f.isDirectory ? 'directory' : 'file'}" data-name="${f.name}" data-dir="${f.isDirectory}">
+        <td>${f.name}</td>
+        <td>${f.isDirectory ? 'مجلد' : 'ملف'}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    filesList.innerHTML = html;
+
+    const rows = filesList.querySelectorAll('tr');
+    rows.forEach(row => {
+      row.addEventListener('click', () => {
+        selectFile(row.dataset.name, row.dataset.dir === 'true');
+        // تظليل الصف المحدد
+        rows.forEach(r => r.style.backgroundColor = '');
+        row.style.backgroundColor = '#00640088';
+      });
+      row.addEventListener('dblclick', () => {
+        if(row.dataset.dir === 'true') {
+          loadFiles(currentPath === '/' ? currentPath + row.dataset.name : currentPath + '/' + row.dataset.name);
+        }
+      });
+    });
+  }
+
+  function selectFile(name, isDirectory) {
+    selectedFile = name;
+    selectedIsDirectory = isDirectory;
+    btnViewFile.disabled = isDirectory;
+    btnDeleteFile.disabled = false;
+  }
+
+  function clearSelection() {
+    selectedFile = null;
+    selectedIsDirectory = false;
+    btnViewFile.disabled = true;
+    btnDeleteFile.disabled = true;
+    const rows = filesList.querySelectorAll('tr');
+    rows.forEach(r => r.style.backgroundColor = '');
+  }
+
+  btnViewFile.addEventListener('click', () => {
+    if(!selectedFile || selectedIsDirectory) return;
+    fetch(`/api/file?path=${encodeURIComponent(currentPath === '/' ? currentPath + selectedFile : currentPath + '/' + selectedFile)}`)
+      .then(res => res.text())
+      .then(data => {
+        fileContent.hidden = false;
+        fileContent.textContent = data;
+      }).catch(() => alert('تعذر تحميل الملف'));
+  });
+
+  btnDeleteFile.addEventListener('click', () => {
+    if(!selectedFile) return;
+    if(!confirm(`هل أنت متأكد من حذف ${selectedFile}?`)) return;
+    fetch('/api/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: currentPath === '/' ? currentPath + selectedFile : currentPath + '/' + selectedFile })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if(data.success) {
+        alert('تم الحذف بنجاح');
+        loadFiles(currentPath);
+      } else {
+        alert('فشل الحذف');
       }
-    }
+    }).catch(() => alert('حدث خطأ أثناء الحذف'));
+  });
 
-    function clearConsole() {
-      localStorage.removeItem('console-output');
-      document.getElementById('console-output').textContent = '';
-    }
+  btnUploadFile.addEventListener('click', () => {
+    fileUploader.click();
+  });
 
-    loadFromLocalStorage();
-  </script>
+  fileUploader.addEventListener('change', () => {
+    if(fileUploader.files.length === 0) return;
+    const formData = new FormData();
+    formData.append('file', fileUploader.files[0]);
+    formData.append('path', currentPath);
+    fetch('/api/upload', {
+      method: 'POST',
+      body: formData
+    }).then(res => res.json())
+      .then(data => {
+        if(data.success) {
+          alert('تم رفع الملف');
+          loadFiles(currentPath);
+        } else {
+          alert('فشل رفع الملف');
+        }
+      }).catch(() => alert('حدث خطأ أثناء رفع الملف'));
+  });
+
+  btnUpDir.addEventListener('click', () => {
+    if(currentPath === '/') return;
+    let parts = currentPath.split('/').filter(Boolean);
+    parts.pop();
+    let parentPath = '/' + parts.join('/');
+    if(parentPath === '') parentPath = '/';
+    loadFiles(parentPath);
+  });
+
+  // تحميل الملفات عند الدخول للقسم لأول مرة
+  loadFiles(currentPath);
+</script>
+
 </body>
 </html>
