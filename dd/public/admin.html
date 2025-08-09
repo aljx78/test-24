@@ -196,16 +196,16 @@
   #fileActions button:hover {
     background: #00e676;
   }
-  #fileContent {
+  #fileEditor {
     margin-top: 10px;
     background: #000;
     color: #0f0;
     font-family: monospace;
-    white-space: pre-wrap;
     border-radius: 6px;
     padding: 15px;
     height: 250px;
     overflow-y: auto;
+    width: 100%;
   }
   input[type="file"] {
     display: none;
@@ -244,25 +244,24 @@
       <div id="pathDisplay">/</div>
       <button id="btnUpDir" title="المجلد الأعلى">⬆️</button>
     </header>
-    <div id="filesList" tabindex="0">
-      <!-- سيتم ملء جدول الملفات هنا -->
-    </div>
+    <div id="filesList"></div>
 
     <div id="fileActions">
-      <button id="btnViewFile" disabled>عرض الملف</button>
+      <button id="btnEditFile" disabled>تعديل الملف</button>
+      <button id="btnSaveFile" hidden>💾 حفظ</button>
       <button id="btnDeleteFile" disabled>حذف</button>
       <button id="btnUploadFile">رفع ملف</button>
       <input type="file" id="fileUploader" />
     </div>
 
-    <pre id="fileContent" hidden></pre>
+    <textarea id="fileEditor" hidden></textarea>
   </section>
 </main>
 
 <script>
   const socket = io();
 
-  // --- لوحة التحكم ---
+  // لوحة التحكم
   const startBtn = document.getElementById('startBtn');
   const stopBtn = document.getElementById('stopBtn');
   const consoleOutput = document.getElementById('consoleOutput');
@@ -272,76 +271,57 @@
     stopBtn.disabled = !isRunning;
   }
 
-  startBtn.addEventListener('click', () => {
-    socket.emit('start-server');
-  });
+  startBtn.addEventListener('click', () => socket.emit('start-server'));
+  stopBtn.addEventListener('click', () => socket.emit('stop-server'));
 
-  stopBtn.addEventListener('click', () => {
-    socket.emit('stop-server');
-  });
-
-  socket.on('console-output', (data) => {
+  socket.on('console-output', data => {
     consoleOutput.textContent += data + '\n';
     consoleOutput.scrollTop = consoleOutput.scrollHeight;
   });
-
-  socket.on('server-status', (status) => {
-    if(status) {
-      consoleOutput.textContent += '[السيرفر يعمل]\n';
-    } else {
-      consoleOutput.textContent += '[السيرفر متوقف]\n';
-    }
+  socket.on('server-status', status => {
+    consoleOutput.textContent += status ? '[السيرفر يعمل]\n' : '[السيرفر متوقف]\n';
     updateButtons(status);
   });
-
   updateButtons(false);
 
-  // --- إرسال أوامر التيرمنال ---
+  // أوامر التيرمنال
   const terminalInput = document.getElementById('terminalInput');
   const sendCmdBtn = document.getElementById('sendCmdBtn');
-
+  sendCmdBtn.addEventListener('click', sendCommand);
+  terminalInput.addEventListener('keydown', e => { if(e.key === 'Enter') sendCommand(); });
   function sendCommand() {
     const cmd = terminalInput.value.trim();
     if(cmd) {
-      socket.emit('terminal-command', cmd);
+      socket.emit('send-command', cmd);
       terminalInput.value = '';
     }
   }
 
-  sendCmdBtn.addEventListener('click', sendCommand);
-
-  terminalInput.addEventListener('keydown', (e) => {
-    if(e.key === 'Enter') {
-      sendCommand();
-    }
-  });
-
-  // --- تبديل الأقسام ---
+  // التبديل بين الأقسام
   const btnControlPanel = document.getElementById('btnControlPanel');
   const btnFileManager = document.getElementById('btnFileManager');
   const controlPanel = document.getElementById('controlPanel');
   const fileManager = document.getElementById('fileManager');
-
   btnControlPanel.addEventListener('click', () => {
     controlPanel.style.display = 'flex';
     fileManager.style.display = 'none';
   });
-
   btnFileManager.addEventListener('click', () => {
     controlPanel.style.display = 'none';
     fileManager.style.display = 'flex';
     loadFiles(currentPath);
   });
 
-  // --- مدير الملفات ---
+  // مدير الملفات
   const pathDisplay = document.getElementById('pathDisplay');
   const btnUpDir = document.getElementById('btnUpDir');
   const filesList = document.getElementById('filesList');
-  const btnViewFile = document.getElementById('btnViewFile');
+  const btnEditFile = document.getElementById('btnEditFile');
+  const btnSaveFile = document.getElementById('btnSaveFile');
   const btnDeleteFile = document.getElementById('btnDeleteFile');
   const btnUploadFile = document.getElementById('btnUploadFile');
   const fileUploader = document.getElementById('fileUploader');
-  const fileContent = document.getElementById('fileContent');
+  const fileEditor = document.getElementById('fileEditor');
 
   let currentPath = '/';
   let selectedFile = null;
@@ -357,21 +337,18 @@
     fetch(`/api/files?path=${encodeURIComponent(dirPath)}`)
       .then(res => res.json())
       .then(data => {
-        if(data.error) {
-          alert(data.error);
-          return;
-        }
+        if(data.error) { alert(data.error); return; }
         currentPath = dirPath;
         pathDisplay.textContent = currentPath;
         renderFilesList(data.files);
         clearSelection();
-        fileContent.hidden = true;
-        fileContent.textContent = '';
-      }).catch(err => alert('حدث خطأ في تحميل الملفات'));
+        fileEditor.hidden = true;
+        btnSaveFile.hidden = true;
+        fileEditor.value = '';
+      }).catch(() => alert('حدث خطأ في تحميل الملفات'));
   }
 
   function renderFilesList(files) {
-    if(!files) files = [];
     let html = '<table><thead><tr><th>الاسم</th><th>النوع</th></tr></thead><tbody>';
     for(let f of files) {
       html += `<tr tabindex="0" class="${f.isDirectory ? 'directory' : 'file'}" data-name="${f.name}" data-dir="${f.isDirectory}">
@@ -386,7 +363,6 @@
     rows.forEach(row => {
       row.addEventListener('click', () => {
         selectFile(row.dataset.name, row.dataset.dir === 'true');
-        // تظليل الصف المحدد
         rows.forEach(r => r.style.backgroundColor = '');
         row.style.backgroundColor = '#00640088';
       });
@@ -401,29 +377,55 @@
   function selectFile(name, isDirectory) {
     selectedFile = name;
     selectedIsDirectory = isDirectory;
-    btnViewFile.disabled = isDirectory;
+    btnEditFile.disabled = isDirectory;
     btnDeleteFile.disabled = false;
   }
 
   function clearSelection() {
     selectedFile = null;
     selectedIsDirectory = false;
-    btnViewFile.disabled = true;
+    btnEditFile.disabled = true;
     btnDeleteFile.disabled = true;
-    const rows = filesList.querySelectorAll('tr');
-    rows.forEach(r => r.style.backgroundColor = '');
+    filesList.querySelectorAll('tr').forEach(r => r.style.backgroundColor = '');
   }
 
-  btnViewFile.addEventListener('click', () => {
+  // تعديل الملف
+  btnEditFile.addEventListener('click', () => {
     if(!selectedFile || selectedIsDirectory) return;
     fetch(`/api/file?path=${encodeURIComponent(currentPath === '/' ? currentPath + selectedFile : currentPath + '/' + selectedFile)}`)
       .then(res => res.text())
       .then(data => {
-        fileContent.hidden = false;
-        fileContent.textContent = data;
+        fileEditor.hidden = false;
+        btnSaveFile.hidden = false;
+        fileEditor.value = data;
       }).catch(() => alert('تعذر تحميل الملف'));
   });
 
+  // حفظ الملف
+  btnSaveFile.addEventListener('click', () => {
+    fetch('/api/file/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        path: currentPath === '/' ? currentPath + selectedFile : currentPath + '/' + selectedFile,
+        content: fileEditor.value
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if(data.success) {
+        alert('تم حفظ التعديلات');
+        fileEditor.hidden = true;
+        btnSaveFile.hidden = true;
+        loadFiles(currentPath);
+      } else {
+        alert(data.error || 'فشل حفظ الملف');
+      }
+    })
+    .catch(() => alert('حدث خطأ أثناء الحفظ'));
+  });
+
+  // حذف ملف
   btnDeleteFile.addEventListener('click', () => {
     if(!selectedFile) return;
     if(!confirm(`هل أنت متأكد من حذف ${selectedFile}?`)) return;
@@ -443,19 +445,15 @@
     }).catch(() => alert('حدث خطأ أثناء الحذف'));
   });
 
-  btnUploadFile.addEventListener('click', () => {
-    fileUploader.click();
-  });
-
+  // رفع ملف
+  btnUploadFile.addEventListener('click', () => fileUploader.click());
   fileUploader.addEventListener('change', () => {
     if(fileUploader.files.length === 0) return;
     const formData = new FormData();
     formData.append('file', fileUploader.files[0]);
     formData.append('path', currentPath);
-    fetch('/api/upload', {
-      method: 'POST',
-      body: formData
-    }).then(res => res.json())
+    fetch('/api/upload', { method: 'POST', body: formData })
+      .then(res => res.json())
       .then(data => {
         if(data.success) {
           alert('تم رفع الملف');
@@ -475,7 +473,7 @@
     loadFiles(parentPath);
   });
 
-  // تحميل الملفات عند الدخول للقسم لأول مرة
+  // تحميل الملفات عند الدخول
   loadFiles(currentPath);
 </script>
 
