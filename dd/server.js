@@ -2,56 +2,56 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
 const fs = require('fs');
-const spawn = require('child_process').spawn;
+const { spawn } = require('child_process');
 const session = require('express-session');
 const http = require('http');
 const socketIo = require('socket.io');
 const bcrypt = require('bcryptjs');
+const multer = require('multer');
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 const PORT = 3000;
 
-// إعدادات الـ body-parser
+// body parser
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// إعداد الجلسات
+// جلسات
 app.use(session({
     secret: 'secretKey',
     resave: false,
     saveUninitialized: true,
-    cookie: { httpOnly: true, secure: false }  // تأكد من تغيير "secure" إلى true إذا كنت تستخدم HTTPS
+    cookie: { httpOnly: true, secure: false }
 }));
 
-// ملف المستخدمين لتخزين بياناتهم بشكل دائم
 const usersFile = path.join(__dirname, 'users.json');
-
-// قراءة بيانات المستخدمين من الملف عند بدء الخادم
 let users = [];
 fs.readFile(usersFile, (err, data) => {
     if (err) {
         console.log('Error reading users file, starting with an empty array.');
     } else {
-        users = JSON.parse(data);
+        try {
+            users = JSON.parse(data);
+        } catch {
+            users = [];
+        }
     }
 });
 
-// إعداد المسارات
+// ملفات static من مجلد public
 app.use(express.static(path.join(__dirname, 'public')));
 
-// إعادة توجيه المسار الأساسي إلى صفحة login
+// إعادة التوجيه للـ login عند /
 app.get('/', (req, res) => {
     res.redirect('/login');
 });
 
-// صفحة تسجيل الدخول
+// صفحات تسجيل الدخول والتسجيل
 app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
-
-// صفحة التسجيل
 app.get('/register', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'register.html'));
 });
@@ -60,12 +60,9 @@ app.get('/register', (req, res) => {
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
     const user = users.find(u => u.username === username);
-
     if (user) {
         bcrypt.compare(password, user.password, (err, isMatch) => {
-            if (err || !isMatch) {
-                return res.send('Invalid credentials');
-            }
+            if (err || !isMatch) return res.send('Invalid credentials');
             req.session.loggedIn = true;
             req.session.username = username;
             res.redirect('/member');
@@ -75,35 +72,23 @@ app.post('/login', (req, res) => {
     }
 });
 
-// تسجيل مستخدم جديد
+// التسجيل
 app.post('/register', (req, res) => {
     const { username, password } = req.body;
-
-    // التحقق من وجود المستخدم بالفعل
-    const existingUser = users.find(u => u.username === username);
-    if (existingUser) {
+    if (users.find(u => u.username === username)) {
         return res.send('Username already exists');
     }
-
-    // تشفير كلمة المرور قبل حفظها
     bcrypt.hash(password, 10, (err, hashedPassword) => {
-        if (err) {
-            return res.send('Error hashing password');
-        }
-        // إضافة المستخدم الجديد
+        if (err) return res.send('Error hashing password');
         users.push({ username, password: hashedPassword });
-
-        // حفظ بيانات المستخدمين في ملف users.json
         fs.writeFile(usersFile, JSON.stringify(users, null, 2), (err) => {
-            if (err) {
-                return res.send('Error saving user data');
-            }
+            if (err) return res.send('Error saving user data');
             res.redirect('/member');
         });
     });
 });
 
-// صفحة العضو
+// صفحة العضو مع عرض الملفات
 app.get('/member', (req, res) => {
     if (req.session.loggedIn) {
         res.sendFile(path.join(__dirname, 'public', 'member.html'));
@@ -112,51 +97,26 @@ app.get('/member', (req, res) => {
     }
 });
 
-// صفحة الإدارة
+// صفحة الإدارة (لوحة تحكم السيرفر)
 app.get('/bimo', (req, res) => {
     const allowedAdmins = ['fenex', 'aljx_67', 'smill09'];
-
-    // التحقق من الجلسة وصلاحية المستخدم
     if (req.session.loggedIn) {
         if (allowedAdmins.includes(req.session.username)) {
             res.sendFile(path.join(__dirname, 'public', 'admin.html'));
         } else {
-            res.send(`
-                <html>
-                    <head>
-                        <style>
-                            body {
-                                display: flex;
-                                justify-content: center;
-                                align-items: center;
-                                height: 100vh;
-                                margin: 0;
-                                background-color: #333;
-                                color: red;
-                                font-size: 40px;
-                                text-align: center;
-                                flex-direction: column;
-                            }
-                            button {
-                                background-color: #4CAF50;
-                                color: white;
-                                padding: 10px 20px;
-                                border: none;
-                                border-radius: 5px;
-                                cursor: pointer;
-                                font-size: 18px;
-                                margin-top: 20px;
-                            }
-                            button:hover {
-                                background-color: #45a049;
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        <div>ليس لك صلاحية لهذا القسم</div>
-                        <a href="/member"><button>العودة إلى صفحتك</button></a>
-                    </body>
-                </html>
+            res.status(403).send(`
+            <html>
+            <head>
+            <style>
+            body { display:flex; justify-content:center; align-items:center; height:100vh; background:#222; color:#f33; font-size:32px; font-family:sans-serif; }
+            button { margin-top:20px; padding:10px 20px; font-size:18px; cursor:pointer; }
+            </style>
+            </head>
+            <body>
+            ليس لك صلاحية لهذا القسم<br>
+            <button onclick="location.href='/member'">العودة إلى صفحتك</button>
+            </body>
+            </html>
             `);
         }
     } else {
@@ -164,120 +124,162 @@ app.get('/bimo', (req, res) => {
     }
 });
 
-// تقديم ملف usercache.json
-app.get('/usercache.json', (req, res) => {
-    const userCachePath = path.join(__dirname, 'usercache.json');
-    if (fs.existsSync(userCachePath)) {
-        res.sendFile(userCachePath);
-    } else {
-        res.status(404).send({ error: 'usercache.json not found' });
-    }
+// API لإدارة الملفات
+
+app.get('/api/files', (req, res) => {
+    let dirPath = req.query.path || '/';
+    if (!dirPath.startsWith('/')) dirPath = '/' + dirPath;
+    const fullPath = path.join(__dirname, dirPath);
+
+    fs.readdir(fullPath, { withFileTypes: true }, (err, files) => {
+        if (err) return res.json({ error: 'خطأ في تحميل الملفات' });
+        const list = files.map(f => ({
+            name: f.name,
+            isDirectory: f.isDirectory()
+        }));
+        res.json({ files: list });
+    });
 });
 
-// تشغيل السيرفر من خلال Socket.io
+app.get('/api/file', (req, res) => {
+    let filePath = req.query.path;
+    if (!filePath) return res.status(400).send('Missing file path');
+    if (!filePath.startsWith('/')) filePath = '/' + filePath;
+    const fullPath = path.join(__dirname, filePath);
+
+    fs.readFile(fullPath, 'utf8', (err, data) => {
+        if (err) return res.status(404).send('File not found');
+        res.send(data);
+    });
+});
+
+app.post('/api/file/save', (req, res) => {
+    let filePath = req.body.path;
+    let content = req.body.content;
+
+    if (!filePath) return res.status(400).json({ error: 'Missing file path' });
+    if (!filePath.startsWith('/')) filePath = '/' + filePath;
+    const fullPath = path.join(__dirname, filePath);
+
+    fs.stat(fullPath, (err, stats) => {
+        if (err || stats.isDirectory()) return res.status(400).json({ error: 'Invalid file path' });
+
+        fs.writeFile(fullPath, content, 'utf8', (err) => {
+            if (err) return res.status(500).json({ error: 'Error saving file' });
+            res.json({ success: true });
+        });
+    });
+});
+
+app.post('/api/delete', (req, res) => {
+    let filePath = req.body.path;
+    if (!filePath) return res.json({ error: 'Missing path' });
+    if (!filePath.startsWith('/')) filePath = '/' + filePath;
+    const fullPath = path.join(__dirname, filePath);
+
+    fs.stat(fullPath, (err, stats) => {
+        if (err) return res.json({ error: 'File not found' });
+
+        if (stats.isDirectory()) {
+            fs.rmdir(fullPath, { recursive: true }, (err) => {
+                if (err) return res.json({ error: 'Error deleting directory' });
+                res.json({ success: true });
+            });
+        } else {
+            fs.unlink(fullPath, (err) => {
+                if (err) return res.json({ error: 'Error deleting file' });
+                res.json({ success: true });
+            });
+        }
+    });
+});
+
+// رفع ملف
+const upload = multer({ dest: path.join(__dirname, 'uploads/') });
+
+app.post('/api/upload', upload.single('file'), (req, res) => {
+    let targetPath = req.body.path || '/';
+    if (!targetPath.startsWith('/')) targetPath = '/' + targetPath;
+    const destPath = path.join(__dirname, targetPath, req.file.originalname);
+
+    fs.rename(req.file.path, destPath, (err) => {
+        if (err) {
+            fs.unlink(req.file.path, () => {});
+            return res.json({ error: 'Error saving uploaded file' });
+        }
+        res.json({ success: true });
+    });
+});
+
+// تشغيل وإيقاف السيرفر عبر Socket.io
 let minecraftServerProcess = null;
-let connectedUsers = [];
 
-// عند الاتصال عبر Socket.io
 io.on('connection', (socket) => {
-    console.log('A user connected');
-
-    // إرسال عدد اللاعبين عند الاتصال
-    socket.emit('players-count', connectedUsers.length);
-
-    socket.on('request-players', () => {
-        // إرسال قائمة اللاعبين المتواجدين حاليًا
-        socket.emit('players-list', connectedUsers);
-    });
-
-    socket.on('disconnect', () => {
-        console.log('User disconnected');
-        connectedUsers = connectedUsers.filter(user => user !== socket.id);
-        io.emit('update-connected-users', connectedUsers);
-
-        // إرسال عدد اللاعبين بعد مغادرة أحدهم
-        io.emit('players-count', connectedUsers.length);
-    });
+    console.log('User connected');
 
     socket.on('start-server', () => {
         if (!minecraftServerProcess) {
-            console.log('Starting Minecraft server...');
-
-            minecraftServerProcess = spawn('java', ['-Xmx7G', '-Xms7G', '-jar', 'server.jar', 'nogui']);
+            minecraftServerProcess = spawn('java', ['-Xmx7G', '-Xms7G', '-jar', 'server.jar', 'nogui'], {
+                cwd: __dirname
+            });
+            io.emit('console-output', 'Minecraft server is starting...\n');
+            io.emit('server-status', true);
 
             minecraftServerProcess.stdout.on('data', (data) => {
                 io.emit('console-output', data.toString());
             });
-
             minecraftServerProcess.stderr.on('data', (data) => {
                 io.emit('console-output', `ERROR: ${data.toString()}`);
             });
-
             minecraftServerProcess.on('close', (code) => {
-                console.log(`Minecraft server process exited with code ${code}`);
-                io.emit('console-output', `Minecraft server closed with code ${code}`);
-                minecraftServerProcess = null;
+                io.emit('console-output', `Minecraft server stopped with code ${code}\n`);
                 io.emit('server-status', false);
+                minecraftServerProcess = null;
             });
-
-            io.emit('console-output', 'Minecraft server is starting...');
-            io.emit('server-status', true);
-
-            setTimeout(() => {
-                io.emit('console-output', 'Starting playit...');
-                const playitProcess = spawn('playit', [], { stdio: ['ignore', 'ignore', 'ignore'] });
-
-                playitProcess.on('close', (code) => {
-                    console.log(`playit process closed with code ${code}`);
-                });
-            }, 10000);  // 10 ثواني بعد بدء Minecraft
+        } else {
+            io.emit('console-output', 'Server is already running.\n');
         }
     });
 
     socket.on('stop-server', () => {
-        if (minecraftServerProcess) {
-            minecraftServerProcess.kill('SIGINT');
-            minecraftServerProcess = null;
-            io.emit('console-output', 'Server is stopping...');
-            io.emit('server-status', false);
+        if (minecraftServerProcess && minecraftServerProcess.stdin) {
+            // إرسال أمر "stop" لإيقاف السيرفر بطريقة صحيحة
+            minecraftServerProcess.stdin.write('stop\n');
+        } else {
+            io.emit('console-output', 'Server is not running.\n');
         }
     });
 
     socket.on('send-command', (command) => {
         if (minecraftServerProcess && minecraftServerProcess.stdin) {
             minecraftServerProcess.stdin.write(`${command}\n`);
-            io.emit('console-output', `Command executed: ${command}`);
+            io.emit('console-output', `Command executed: ${command}\n`);
         } else {
-            io.emit('console-output', 'Minecraft server is not running.');
+            io.emit('console-output', 'Minecraft server is not running.\n');
         }
-    });
-
-    // إضافة حدث لبدء playit
-    socket.on('start-playit', () => {
-        const playitProcess = spawn('playit', []); // تأكد من أن playit موجود في الـ PATH
-        playitProcess.stdout.on('data', (data) => {
-            io.emit('console-output', data.toString());
-        });
-
-        playitProcess.stderr.on('data', (data) => {
-            io.emit('console-output', `ERROR: ${data.toString()}`);
-        });
-
-        playitProcess.on('close', (code) => {
-            io.emit('console-output', `playit process closed with code ${code}`);
-        });
-
-        io.emit('console-output', 'playit is starting...');
     });
 
     socket.on('disconnect', () => {
         console.log('User disconnected');
-        connectedUsers = connectedUsers.filter(user => user !== socket.id);
-        io.emit('update-connected-users', connectedUsers);
     });
 });
 
-// إعداد الخادم
+// استقبال أوامر من الـ console (سطر الأوامر) وإرسالها للسيرفر
+const readline = require('readline');
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+rl.on('line', (input) => {
+    if (minecraftServerProcess && minecraftServerProcess.stdin) {
+        minecraftServerProcess.stdin.write(`${input}\n`);
+        console.log(`Command sent to Minecraft server: ${input}`);
+    } else {
+        console.log('Minecraft server is not running.');
+    }
+});
+
+// بدء الخادم
 server.listen(PORT, () => {
-    console.log(`Server is running at http://localhost:${PORT}`);
+    console.log(`Server running at http://localhost:${PORT}`);
 });
