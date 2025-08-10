@@ -232,7 +232,7 @@
       </div>
       <section id="consoleOutput" aria-live="polite" aria-label="إخراج الكونسل"></section>
     </div>
-    <div id="terminalInputContainer">
+    <div id="terminalInputContainer" style="display:flex; gap:10px; margin-top:10px;">
       <input id="terminalInput" type="text" placeholder="اكتب أمرًا..." autocomplete="off" />
       <button id="sendCmdBtn">إرسال</button>
     </div>
@@ -363,22 +363,17 @@
     rows.forEach(row => {
       row.addEventListener('click', () => {
         selectFile(row.dataset.name, row.dataset.dir === 'true');
-        rows.forEach(r => r.style.backgroundColor = '');
-        row.style.backgroundColor = '#00640088';
       });
-      row.addEventListener('dblclick', () => {
-        if(row.dataset.dir === 'true') {
-          loadFiles(currentPath === '/' ? currentPath + row.dataset.name : currentPath + '/' + row.dataset.name);
-        }
+      row.addEventListener('keydown', e => {
+        if (e.key === 'Enter') selectFile(row.dataset.name, row.dataset.dir === 'true');
       });
+      if (row.dataset.dir === 'true') {
+        row.addEventListener('dblclick', () => {
+          const newPath = currentPath === '/' ? `/${row.dataset.name}` : `${currentPath}/${row.dataset.name}`;
+          loadFiles(newPath);
+        });
+      }
     });
-  }
-
-  function selectFile(name, isDirectory) {
-    selectedFile = name;
-    selectedIsDirectory = isDirectory;
-    btnEditFile.disabled = isDirectory;
-    btnDeleteFile.disabled = false;
   }
 
   function clearSelection() {
@@ -386,94 +381,102 @@
     selectedIsDirectory = false;
     btnEditFile.disabled = true;
     btnDeleteFile.disabled = true;
-    filesList.querySelectorAll('tr').forEach(r => r.style.backgroundColor = '');
   }
 
-  // تعديل الملف
-  btnEditFile.addEventListener('click', () => {
-    if(!selectedFile || selectedIsDirectory) return;
-    fetch(`/api/file?path=${encodeURIComponent(currentPath === '/' ? currentPath + selectedFile : currentPath + '/' + selectedFile)}`)
-      .then(res => res.text())
-      .then(data => {
-        fileEditor.hidden = false;
-        btnSaveFile.hidden = false;
-        fileEditor.value = data;
-      }).catch(() => alert('تعذر تحميل الملف'));
-  });
-
-  // حفظ الملف
-  btnSaveFile.addEventListener('click', () => {
-    fetch('/api/file/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        path: currentPath === '/' ? currentPath + selectedFile : currentPath + '/' + selectedFile,
-        content: fileEditor.value
-      })
-    })
-    .then(res => res.json())
-    .then(data => {
-      if(data.success) {
-        alert('تم حفظ التعديلات');
-        fileEditor.hidden = true;
-        btnSaveFile.hidden = true;
-        loadFiles(currentPath);
-      } else {
-        alert(data.error || 'فشل حفظ الملف');
-      }
-    })
-    .catch(() => alert('حدث خطأ أثناء الحفظ'));
-  });
-
-  // حذف ملف
-  btnDeleteFile.addEventListener('click', () => {
-    if(!selectedFile) return;
-    if(!confirm(`هل أنت متأكد من حذف ${selectedFile}?`)) return;
-    fetch('/api/delete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: currentPath === '/' ? currentPath + selectedFile : currentPath + '/' + selectedFile })
-    })
-    .then(res => res.json())
-    .then(data => {
-      if(data.success) {
-        alert('تم الحذف بنجاح');
-        loadFiles(currentPath);
-      } else {
-        alert('فشل الحذف');
-      }
-    }).catch(() => alert('حدث خطأ أثناء الحذف'));
-  });
-
-  // رفع ملف
-  btnUploadFile.addEventListener('click', () => fileUploader.click());
-  fileUploader.addEventListener('change', () => {
-    if(fileUploader.files.length === 0) return;
-    const formData = new FormData();
-    formData.append('file', fileUploader.files[0]);
-    formData.append('path', currentPath);
-    fetch('/api/upload', { method: 'POST', body: formData })
-      .then(res => res.json())
-      .then(data => {
-        if(data.success) {
-          alert('تم رفع الملف');
-          loadFiles(currentPath);
-        } else {
-          alert('فشل رفع الملف');
-        }
-      }).catch(() => alert('حدث خطأ أثناء رفع الملف'));
-  });
+  function selectFile(name, isDirectory) {
+    selectedFile = name;
+    selectedIsDirectory = isDirectory;
+    btnDeleteFile.disabled = false;
+    btnEditFile.disabled = isDirectory; // لا تسمح بتعديل المجلدات
+  }
 
   btnUpDir.addEventListener('click', () => {
     if(currentPath === '/') return;
     let parts = currentPath.split('/').filter(Boolean);
     parts.pop();
-    let parentPath = '/' + parts.join('/');
-    if(parentPath === '') parentPath = '/';
-    loadFiles(parentPath);
+    let newPath = '/' + parts.join('/');
+    if(newPath === '/') newPath = '/';
+    loadFiles(newPath);
   });
 
-  // تحميل الملفات عند الدخول
+  btnEditFile.addEventListener('click', () => {
+    if(!selectedFile || selectedIsDirectory) return;
+    fetch(`/api/file?path=${encodeURIComponent(currentPath)}&file=${encodeURIComponent(selectedFile)}`)
+      .then(res => res.text())
+      .then(text => {
+        fileEditor.value = text;
+        fileEditor.hidden = false;
+        btnSaveFile.hidden = false;
+      }).catch(() => alert('فشل تحميل الملف'));
+  });
+
+  btnSaveFile.addEventListener('click', () => {
+    if(!selectedFile) return;
+    fetch('/api/file', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        path: currentPath,
+        file: selectedFile,
+        content: fileEditor.value
+      })
+    }).then(res => res.json())
+      .then(data => {
+        if(data.success) {
+          alert('تم حفظ الملف بنجاح');
+          fileEditor.hidden = true;
+          btnSaveFile.hidden = true;
+        } else {
+          alert('فشل حفظ الملف');
+        }
+      }).catch(() => alert('حدث خطأ أثناء حفظ الملف'));
+  });
+
+  btnDeleteFile.addEventListener('click', () => {
+    if(!selectedFile) return;
+    if(!confirm(`هل أنت متأكد من حذف ${selectedFile}?`)) return;
+    fetch('/api/file', {
+      method: 'DELETE',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ path: currentPath, file: selectedFile })
+    }).then(res => res.json())
+      .then(data => {
+        if(data.success) {
+          alert('تم الحذف بنجاح');
+          loadFiles(currentPath);
+        } else {
+          alert('فشل الحذف');
+        }
+      }).catch(() => alert('حدث خطأ أثناء الحذف'));
+  });
+
+  btnUploadFile.addEventListener('click', () => {
+    fileUploader.click();
+  });
+
+  fileUploader.addEventListener('change', () => {
+    if(fileUploader.files.length === 0) return;
+    const formData = new FormData();
+    for(let i=0; i<fileUploader.files.length; i++) {
+      formData.append('file', fileUploader.files[i]);
+    }
+    formData.append('path', currentPath);
+    fetch('/api/upload', { method: 'POST', body: formData })
+      .then(res => res.json())
+      .then(data => {
+        if(data.success) {
+          alert('تم رفع الملف/الملفات');
+          loadFiles(currentPath);
+          fileUploader.value = '';
+        } else {
+          alert('فشل رفع الملف/الملفات: ' + (data.error || ''));
+        }
+      }).catch(() => alert('حدث خطأ أثناء رفع الملف/الملفات'));
+  });
+
+  // عند تحميل الصفحة، إظهار لوحة التحكم أولاً
+  controlPanel.style.display = 'flex';
+  fileManager.style.display = 'none';
   loadFiles(currentPath);
 </script>
 
