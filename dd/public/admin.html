@@ -85,21 +85,21 @@
     background: #00e676;
   }
   #consoleOutput {
-    flex: 1;
-    background: #000;
-    border-radius: 8px;
-    padding: 20px;
-    font-family: monospace;
-    font-size: 14px;
-    color: #00ff00;
-    overflow-y: auto;
-    box-shadow: inset 0 0 15px #00c853;
-    white-space: pre-wrap;
-  }
-  #terminalInputContainer {
-    display: flex;
-    gap: 10px;
-  }
+  flex: none; /* يمنع التمدد */
+  height: 300px; /* ارتفاع ثابت */
+  background: #000;
+  border-radius: 8px;
+  padding: 20px;
+  font-family: monospace;
+  font-size: 14px;
+  color: #00ff00;
+  overflow-y: scroll; /* بدل auto */
+  overflow-x: auto;
+  box-shadow: inset 0 0 15px #eeff00;
+  white-space: pre-wrap;
+  max-width: 100%;
+  word-wrap: break-word;
+}
   #terminalInput {
     flex: 1;
     padding: 8px;
@@ -251,7 +251,7 @@
       <button id="btnSaveFile" hidden>💾 حفظ</button>
       <button id="btnDeleteFile" disabled>حذف</button>
       <button id="btnUploadFile">رفع ملف</button>
-      <input type="file" id="fileUploader" />
+      <input type="file" id="fileUploader" multiple />
     </div>
 
     <textarea id="fileEditor" hidden></textarea>
