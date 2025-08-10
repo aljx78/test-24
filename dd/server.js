@@ -12,7 +12,7 @@ const multer = require('multer');
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
-const PORT = 3000;
+const PORT = 80;
 
 // body parser
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -203,18 +203,29 @@ app.post('/api/delete', (req, res) => {
 // رفع ملف
 const upload = multer({ dest: path.join(__dirname, 'uploads/') });
 
-app.post('/api/upload', upload.single('file'), (req, res) => {
+app.post('/api/upload', upload.array('file'), (req, res) => {
     let targetPath = req.body.path || '/';
     if (!targetPath.startsWith('/')) targetPath = '/' + targetPath;
-    const destPath = path.join(__dirname, targetPath, req.file.originalname);
 
-    fs.rename(req.file.path, destPath, (err) => {
-        if (err) {
-            fs.unlink(req.file.path, () => {});
-            return res.json({ error: 'Error saving uploaded file' });
+    if (!req.files || req.files.length === 0) {
+        return res.json({ error: 'No files uploaded' });
+    }
+
+    let errors = [];
+    req.files.forEach(file => {
+        const destPath = path.join(__dirname, targetPath, file.originalname);
+        try {
+            fs.renameSync(file.path, destPath);
+        } catch (err) {
+            errors.push(`Error saving file ${file.originalname}`);
+            fs.unlinkSync(file.path);
         }
-        res.json({ success: true });
     });
+
+    if (errors.length > 0) {
+        return res.json({ error: errors.join(', ') });
+    }
+    res.json({ success: true });
 });
 
 // تشغيل وإيقاف السيرفر عبر Socket.io
