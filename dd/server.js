@@ -65,6 +65,12 @@ app.post('/login', (req, res) => {
             if (err || !isMatch) return res.send('Invalid credentials');
             req.session.loggedIn = true;
             req.session.username = username;
+
+            // تحويل مباشر لصفحة الإدارة لو المستخدم مسموح له
+            const allowedAdmins = ['lord', 'aljx_67', 'jamal', 'admin'];
+            if (allowedAdmins.includes(username)) {
+                return res.redirect('/bimo');
+            }
             res.redirect('/member');
         });
     } else {
@@ -99,7 +105,7 @@ app.get('/member', (req, res) => {
 
 // صفحة الإدارة (لوحة تحكم السيرفر)
 app.get('/bimo', (req, res) => {
-    const allowedAdmins = ['fenex', 'aljx_67', 'smill09'];
+    const allowedAdmins = ['lord', 'aljx_67', 'jamal', 'admin'];
     if (req.session.loggedIn) {
         if (allowedAdmins.includes(req.session.username)) {
             res.sendFile(path.join(__dirname, 'public', 'admin.html'));
@@ -270,12 +276,27 @@ const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
 });
+
 rl.on('line', (input) => {
-    if (minecraftServerProcess && minecraftServerProcess.stdin) {
-        minecraftServerProcess.stdin.write(`${input}\n`);
-        console.log(`Command sent to Minecraft server: ${input}`);
+    if (input.trim().toLowerCase() === 'stop') {
+        if (minecraftServerProcess && minecraftServerProcess.stdin) {
+            minecraftServerProcess.stdin.write('stop\n');
+            console.log('Stopping Minecraft server...');
+            minecraftServerProcess.on('close', () => {
+                console.log('Minecraft server stopped. Exiting server.js now.');
+                process.exit(0); // خروج من العملية
+            });
+        } else {
+            console.log('Minecraft server is not running. Exiting server.js now.');
+            process.exit(0);
+        }
     } else {
-        console.log('Minecraft server is not running.');
+        if (minecraftServerProcess && minecraftServerProcess.stdin) {
+            minecraftServerProcess.stdin.write(`${input}\n`);
+            console.log(`Command sent to Minecraft server: ${input}`);
+        } else {
+            console.log('Minecraft server is not running.');
+        }
     }
 });
 
